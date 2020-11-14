@@ -1,0 +1,11 @@
+---
+name: repos
+description: |-
+  Monolithic Repository Tool.
+  The tool manages a monolithic repository consisted of multiple repositories.
+targets:
+  build:
+    rule: 
+      go:
+        packages: ['./cmd/repos']
+        output: repos

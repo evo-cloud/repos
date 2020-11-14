@@ -1,0 +1,34 @@
+name: Release
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Set up Go
+      id: go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.15
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Build
+      run: CGO_ENABLED=0 go run ./cmd/repos b repos:*
+      shell: bash
+
+    - name: Release
+      run: |
+        set -x
+        tag_name="${GITHUB_REF##*/}"
+        tar -C out/repos/out/bin -czf "$(pwd)/out/repos-linux.tar.gz" --owner=0 --group=0 repos
+        hub release create -a out/repos-linux.tar.gz -m "$tag_name" "$tag_name"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

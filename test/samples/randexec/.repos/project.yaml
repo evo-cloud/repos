@@ -1,0 +1,148 @@
+---
+name: repos.test.randexec
+description: |-
+  Testing project for repos.
+  This project contains a set of tasks executing in random durations.
+targets:
+  tool:
+    rule:
+      files:
+        srcs:
+        - repos-randexec.sh
+    register-tool:
+      name: randexec
+      src: repos-randexec.sh
+      shell-script: true
+
+  prepare:
+    deps:
+    - tool
+    rule:
+      randexec:
+        min: '1'
+        max: '3'
+  
+  stage1a:
+    deps:
+    - prepare
+    rule:
+      randexec:
+        min: '1'
+
+  stage1b:
+    deps:
+    - prepare
+    rule:
+      randexec:
+        min: '1'
+
+  stage1c:
+    deps:
+    - prepare
+    rule:
+      randexec:
+        min: '1'
+
+  stage1:
+    deps:
+    - stage1a
+    - stage1b
+    - stage1c
+
+  stage2a:
+    deps:
+    - stage1
+    rule:
+      randexec:
+        min: '3'
+        max: '5'
+
+  stage2b:
+    deps:
+    - stage1
+    rule:
+      randexec:
+        min: '3'
+        max: '5'
+
+  stage2c:
+    deps:
+    - stage1
+    rule:
+      randexec:
+        min: '3'
+        max: '5'
+
+  stage2d:
+    deps:
+    - stage1
+    rule:
+      randexec:
+        min: '3'
+        max: '5'
+
+  stage2e:
+    deps:
+    - stage1
+    rule:
+      randexec:
+        min: '3'
+        max: '5'
+
+  stage2f:
+    deps:
+    - stage1
+    rule:
+      randexec:
+        min: '3'
+        max: '5'
+
+  stage2:
+    deps:
+    - stage2a
+    - stage2b
+    - stage2c
+    - stage2d
+    - stage2e
+    - stage2f
+
+  stage3a:
+    deps:
+    - stage2
+    rule:
+      randexec:
+        min: '3'
+        max: '5'
+
+  stage3b:
+    deps:
+    - stage2
+    rule:
+      randexec:
+        min: '3'
+        max: '5'
+
+  stage3:
+    deps:
+    - stage3a
+    - stage3b
+
+  final:
+    deps:
+    - stage3
+    rule:
+      randexec:
+        min: '5'
+        max: '7'
+
+  stage-fail:
+    deps:
+    - stage2
+    rule:
+      randexec:
+        fail: yes
+  
+  fail:
+    deps:
+    - stage3
+    - stage-fail
