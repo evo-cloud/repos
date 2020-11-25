@@ -44,6 +44,12 @@ func (p *TextPrinter) PrintTaskStatus(name string, result *repos.TaskResult, out
 	if result == nil {
 		fmt.Printf("  Result: Unknown\n")
 	} else {
+		if result.SuccessBuildStartTime != 0 && result.SuccessBuildEndTime != 0 {
+			fmt.Println("Last successful build:")
+			fmt.Printf("  StartAt: %s\n", time.Unix(0, result.SuccessBuildStartTime))
+			fmt.Printf("  EndAt:   %s\n", time.Unix(0, result.SuccessBuildEndTime))
+		}
+		fmt.Println("Last build:")
 		fmt.Printf("  StartAt: %s\n", time.Unix(0, result.StartTime))
 		fmt.Printf("  EndAt: %s\n", time.Unix(0, result.EndTime))
 		switch {
@@ -60,6 +66,7 @@ func (p *TextPrinter) PrintTaskStatus(name string, result *repos.TaskResult, out
 	if outputs == nil {
 		return
 	}
+	fmt.Println("Outputs:")
 	fmt.Printf("  Primary: %s\n", outputs.Primary)
 	if len(outputs.Extra) > 0 {
 		fmt.Printf("  Extra:\n")

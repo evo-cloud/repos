@@ -70,6 +70,12 @@ func (p *TermPrinter) PrintTaskStatus(name string, result *repos.TaskResult, out
 	fmt.Printf("\x1b[36;1m%s\x1b[m%s%s\n", name, resultStr, durStr)
 
 	if result != nil {
+		if result.SuccessBuildStartTime != 0 && result.SuccessBuildEndTime != 0 {
+			fmt.Println("Last successful build:")
+			fmt.Printf("  StartAt: %s\n", time.Unix(0, result.SuccessBuildStartTime).Format(time.StampMilli))
+			fmt.Printf("  EndAt:   %s\n", time.Unix(0, result.SuccessBuildEndTime).Format(time.StampMilli))
+		}
+		fmt.Println("Last build:")
 		fmt.Printf("  StartAt: %s\n", time.Unix(0, result.StartTime).Format(time.StampMilli))
 		fmt.Printf("  EndAt:   %s\n", time.Unix(0, result.EndTime).Format(time.StampMilli))
 		if !result.Skipped && result.Err != nil {
@@ -80,6 +86,7 @@ func (p *TermPrinter) PrintTaskStatus(name string, result *repos.TaskResult, out
 	if outputs == nil {
 		return
 	}
+	fmt.Println("Outputs:")
 	if outputs.Primary != "" {
 		fmt.Printf("  Primary: \x1b[32;1m%s\x1b[m\n", outputs.Primary)
 	}

@@ -59,10 +59,12 @@ type TaskCompleteEvent struct {
 
 // TaskResult contains persistable result of a task.
 type TaskResult struct {
-	StartTime int64
-	EndTime   int64
-	Skipped   bool
-	Err       *string
+	SuccessBuildStartTime int64
+	SuccessBuildEndTime   int64
+	StartTime             int64
+	EndTime               int64
+	Skipped               bool
+	Err                   *string
 }
 
 // Dispatcher dispatches tasks.
@@ -282,16 +284,17 @@ func (x *execution) runWorker(ctx context.Context, index int) {
 			t.StartTime, t.State = time.Now(), TaskRunning
 			t.Outputs = nil
 			x.eventCh <- &TaskStartEvent{Task: t, Worker: index}
-			t.Err = x.executeTask(ctx, t, index)
+			var result *TaskResult
+			result, t.Err = x.executeTask(ctx, t, index)
 			t.EndTime, t.State = time.Now(), TaskCompleted
-			x.writeTaskResult(t)
+			x.writeTaskResult(t, result)
 			x.logger.Printf("Worker %d complete task %s", index, t.Name())
 			x.resultCh <- t
 		}
 	}
 }
 
-func (x *execution) executeTask(ctx context.Context, task *Task, worker int) error {
+func (x *execution) executeTask(ctx context.Context, task *Task, worker int) (*TaskResult, error) {
 	xctx := ToolExecContext{
 		Task:      task,
 		Worker:    worker,
@@ -299,9 +302,28 @@ func (x *execution) executeTask(ctx context.Context, task *Task, worker int) err
 		OutDir:    filepath.Join(x.dispatcher.OutBaseDir, task.Target.Project.Dir),
 		Skippable: !task.Target.Meta().Always && !task.NoSkip,
 	}
+	result := x.loadTaskResult(task)
+	if result.SuccessBuildStartTime == 0 || result.SuccessBuildEndTime == 0 {
+		x.logger.Println("NotSkippable: no previous successful build.")
+		xctx.Skippable = false
+	}
 	if xctx.Skippable {
 		for dep := range task.DepOn {
 			if !dep.Skipped() {
+				x.logger.Printf("NotSkippable: dep %s not skipped.", dep.Name())
+				xctx.Skippable = false
+				break
+			}
+			depResult := x.loadTaskResult(dep)
+			// Not skippable if success build of dep is later than this task.
+			if depResult.SuccessBuildStartTime == 0 || depResult.SuccessBuildEndTime == 0 {
+				x.logger.Printf("NotSkippable: dep %s has no successful build.", dep.Name())
+				xctx.Skippable = false
+				break
+			}
+			if depResult.SuccessBuildStartTime > result.SuccessBuildStartTime ||
+				depResult.SuccessBuildEndTime > result.SuccessBuildStartTime {
+				x.logger.Printf("NotSkippable: dep %s is newer than current task.", dep.Name())
 				xctx.Skippable = false
 				break
 			}
@@ -311,19 +333,17 @@ func (x *execution) executeTask(ctx context.Context, task *Task, worker int) err
 	if !ok {
 		var err error
 		if tool, err = x.createTool(task.Target); err != nil {
-			return err
+			return result, err
 		}
 	}
 	if tool == nil {
 		if xctx.Skippable {
-			return ErrSkipped
+			return result, ErrSkipped
 		}
-		return nil
+		return result, nil
 	}
 	xctx.Task.Executor = tool
-	if result := x.resetTaskResult(task); result == nil || result.Err != nil {
-		xctx.Skippable = false
-	}
+	os.Remove(x.taskResultFile(task))
 
 	xctx.ExtraEnv = []string{
 		fmt.Sprintf("REPOS_PROJECT=%s", xctx.Project().Name),
@@ -335,6 +355,7 @@ func (x *execution) executeTask(ctx context.Context, task *Task, worker int) err
 		fmt.Sprintf("REPOS_SOURCE_SUBDIR=%s", xctx.SourceSubDir()),
 		fmt.Sprintf("REPOS_METAFOLDER=%s", xctx.MetaFolder()),
 		fmt.Sprintf("REPOS_PROJECT_META_DIR=%s", xctx.MetaDir()),
+		fmt.Sprintf("REPOS_OUTPUT_BASE=%s", xctx.Repo().OutDir()),
 		fmt.Sprintf("REPOS_OUTPUT_DIR=%s", xctx.OutDir),
 	}
 	if xctx.Skippable {
@@ -342,25 +363,25 @@ func (x *execution) executeTask(ctx context.Context, task *Task, worker int) err
 	}
 
 	if err := os.MkdirAll(xctx.CacheDir, 0755); err != nil {
-		return fmt.Errorf("create cache dir %q error: %w", xctx.CacheDir, err)
+		return result, fmt.Errorf("create cache dir %q error: %w", xctx.CacheDir, err)
 	}
 	if err := os.MkdirAll(x.dispatcher.LogDir, 0755); err != nil {
-		return fmt.Errorf("create log dir %q error: %w", x.dispatcher.LogDir, err)
+		return result, fmt.Errorf("create log dir %q error: %w", x.dispatcher.LogDir, err)
 	}
 	if err := os.MkdirAll(xctx.OutDir, 0755); err != nil {
-		return fmt.Errorf("create out dir %q error: %w", xctx.OutDir, err)
+		return result, fmt.Errorf("create out dir %q error: %w", xctx.OutDir, err)
 	}
 
 	logFn := filepath.Join(x.dispatcher.LogDir, task.Name()+".log")
 	logFile, err := os.Create(logFn)
 	if err != nil {
-		return fmt.Errorf("create log file %q error: %w", logFn, err)
+		return result, fmt.Errorf("create log file %q error: %w", logFn, err)
 	}
 	defer logFile.Close()
 	outFn := filepath.Join(x.dispatcher.LogDir, task.Name()+".out")
 	outFile, err := os.Create(outFn)
 	if err != nil {
-		return fmt.Errorf("create stdout file %q error: %w", outFn, err)
+		return result, fmt.Errorf("create stdout file %q error: %w", outFn, err)
 	}
 	defer outFile.Close()
 	xctx.LogWriter = logFile
@@ -368,39 +389,40 @@ func (x *execution) executeTask(ctx context.Context, task *Task, worker int) err
 	xctx.Logger = log.New(xctx.LogWriter, task.Target.ToolName()+" ", log.LstdFlags)
 	err = tool.Execute(ctx, &xctx)
 	if err != nil && err != ErrSkipped {
-		return err
+		return result, err
 	}
 	if regErr := x.registerToolIfRequested(&xctx); regErr != nil {
-		return regErr
+		return result, regErr
 	}
-	return err
+	return result, err
 }
 
 func (x *execution) taskResultFile(task *Task) string {
 	return filepath.Join(x.dispatcher.CacheDir, task.Name()+".result")
 }
 
-func (x *execution) resetTaskResult(task *Task) *TaskResult {
+func (x *execution) loadTaskResult(task *Task) *TaskResult {
 	fn := x.taskResultFile(task)
 	result, err := loadTaskResultFrom(fn)
 	if err != nil {
 		x.logger.Printf("TaskResult %q: %v", task.Name(), err)
-		return nil
+		return &TaskResult{}
 	}
-	os.Remove(fn)
 	return result
 }
 
-func (x *execution) writeTaskResult(task *Task) {
-	result := &TaskResult{
-		StartTime: task.StartTime.UnixNano(),
-		EndTime:   task.EndTime.UnixNano(),
-	}
+func (x *execution) writeTaskResult(task *Task, result *TaskResult) {
+	result.StartTime = task.StartTime.UnixNano()
+	result.EndTime = task.EndTime.UnixNano()
+	result.Skipped = false
 	if task.Err == ErrSkipped {
 		result.Skipped = true
 	} else if task.Err != nil {
 		errMsg := task.Err.Error()
 		result.Err = &errMsg
+	} else {
+		result.SuccessBuildStartTime = result.StartTime
+		result.SuccessBuildEndTime = result.EndTime
 	}
 	data, err := json.Marshal(result)
 	if err != nil {

@@ -1,0 +1,25 @@
+---
+name: repos.test.skip
+description: |-
+  Testing project for repos.
+  This project tests skipping logic. To test:
+  repos b repos.test.skip:next  - it should build everything
+  repos b repos.test:skip:next  - it should skip everything
+  repos b -f repos.test.skip:original - it should build original
+  repos b repos.test.skip:next  - it should skip original but build next.
+targets:
+  original:
+    rule:
+      exec:
+        command: >
+          echo 'Original' >"$REPOS_OUTPUT_DIR/result.txt"
+        out: result.txt
+
+  next:
+    deps:
+    - original
+    rule:
+      exec:
+        command: >
+          echo 'Next' >"$REPOS_OUTPUT_DIR/next.txt"
+        out: next.txt
