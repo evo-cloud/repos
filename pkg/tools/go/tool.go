@@ -21,8 +21,14 @@ type Params struct {
 	BuildMode string `json:"buildmode,omitempty"`
 	// CGo specifies whether CGo should be enabled (disabled by default).
 	CGo bool `json:"cgo,omitempty"`
+	// GoOS specifies GOOS environment variable if present.
+	GoOS string `json:"goos,omitempty"`
+	// GoArch specifies GOARCH environment variable if present.
+	GoArch string `json:"goarch,omitempty"`
 	// Packages specifies the packages to build.
 	Packages []string `json:"packages,omitempty"`
+	// Env specifies extra environment variables.
+	Env []string `json:"env,omitempty"`
 	// Output specifies output filename.
 	Output string `json:"output,omitempty"`
 }
@@ -67,8 +73,17 @@ func (t *Tool) CreateToolExecutor(target *repos.Target) (repos.ToolExecutor, err
 	if params.BuildMode != "" {
 		x.BuildOptions = append(x.BuildOptions, "-buildmode", params.BuildMode)
 	}
+	if params.GoOS != "" {
+		x.ExtraEnv = append(x.ExtraEnv, "GOOS="+params.GoOS)
+	}
+	if params.GoArch != "" {
+		x.ExtraEnv = append(x.ExtraEnv, "GOARCH="+params.GoArch)
+	}
 	if len(params.Packages) == 0 {
 		return nil, fmt.Errorf("at least one package should be specified in param packages")
+	}
+	for _, item := range params.Env {
+		x.ExtraEnv = append(x.ExtraEnv, item)
 	}
 	if x.Output == "" {
 		x.Output = target.Name.LocalName
