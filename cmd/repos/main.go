@@ -1,25 +1,18 @@
 package main
 
 import (
-	"context"
-	"flag"
+	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
+	"path/filepath"
 
-	"github.com/google/subcommands"
+	"github.com/spf13/cobra"
 
 	"repos/pkg/cli"
 	_ "repos/pkg/tools/builtin"
 )
 
 const (
-	projectsSynopsis = `List all projects`
-	projectsUsage    = `projects
-List all projects.
-`
-	targetsSynopsis = `List targets`
-	targetsUsage    = `targets [PATTERN...]
+	targetsUsage = `targets [PATTERN...]
 List all targets or matched targets with specified patterns.
 
 A pattern can be either
@@ -52,109 +45,135 @@ with an exception if TARGET-PATTERN is a plain name (without wildcards like
 *, ?, or character-range, or escapes like \c), it matches a single target.
 If more than one targets (from multiple projects) are matched, it's an error.
 `
-	checkSynopsis = `Check consistency of projects and targets`
-	checkUsage    = `check
-Check consistency of projects and targets.
-`
-	statusSynopsis = `Print task status`
-	statusUsage    = `status TARGET
+
+	statusUsage = `status TARGET
 Print status of TARGET.
-TARGET following the same matching rule as command "targets". except it should
-match exact one target. Please checkout using "help targets".
+TARGET following the same matching rule as command "targets".
+Except it should match exact one target.
+Please checkout using "targets --help".
 Otherwise the command will fail.
 `
-	logSynopsis = `Print task logs`
-	logUsage    = `log TARGET
+
+	logUsage = `log TARGET
 Print log of TARGET.
-TARGET following the same matching rule as command "targets" except it should
-match exact one target. Please checkout using "help targets".
+TARGET following the same matching rule as command "targets".
+Except it should match exact one target.
+Please checkout using "targets --help".
 Otherwise the command will fail.
 `
-	buildSynopsis = `build targets`
-	buildUsage    = `build TARGETS...
-build targets.
-TARGET following the same matching rule as command "targets". Please checkout
-using "help targets".
+
+	buildUsage = `build TARGETS...
+Build targets.
+TARGET following the same matching rule as command "targets".
+Please checkout using "targets --help".
 `
-	runSynopsis = `Execute the output executable from the specified target`
-	runUsage    = `run TARGET ARGUMENTS...
+
+	runUsage = `run TARGET ARGUMENTS...
 Execute a target.
-TARGET following the same matching rule as command "targets" except it should
-match exact one target. Please checkout using "help targets".
+TARGET following the same matching rule as command "targets".
+Except it should match exact one target.
+Please checkout using "targets --help".
 `
 )
 
 var (
+	Version string
+
 	contextBuilder cli.ContextBuilder
 )
 
-type flagBinder interface {
-	SetFlags(*flag.FlagSet)
-}
-
-type cmdWrapper struct {
-	name     string
-	synopsis string
-	usage    string
-	command  cli.Command
-}
-
-func (w *cmdWrapper) Name() string     { return w.name }
-func (w *cmdWrapper) Synopsis() string { return w.synopsis }
-func (w *cmdWrapper) Usage() string    { return w.usage }
-func (w *cmdWrapper) SetFlags(fs *flag.FlagSet) {
-	if b, ok := w.command.(flagBinder); ok {
-		b.SetFlags(fs)
-	}
-}
-func (w *cmdWrapper) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	return runCmd(ctx, w.command, f.Args()...)
-}
-
-func wrapCmd(cmd cli.Command, name, synopsis, usage string) *cmdWrapper {
-	return &cmdWrapper{name: name, synopsis: synopsis, usage: usage, command: cmd}
-}
-
-func runCmd(ctx context.Context, cmd cli.Command, args ...string) subcommands.ExitStatus {
-	if err := contextBuilder.BuildAndRun(ctx, cmd, args...); err != nil {
-		return subcommands.ExitFailure
-	}
-	return subcommands.ExitSuccess
-}
-
-func registerCmd(cmd subcommands.Command, aliases ...string) {
-	subcommands.Register(cmd, "")
-	for _, alias := range aliases {
-		subcommands.Register(subcommands.Alias(alias, cmd), "")
+func cmdRunner(cmd cli.Command) func(c *cobra.Command, args []string) {
+	return func(c *cobra.Command, args []string) {
+		if err := contextBuilder.BuildAndRun(c.Context(), cmd, args...); err != nil {
+			os.Exit(1)
+		}
 	}
 }
 
 func init() {
-	flag.StringVar(&contextBuilder.WorkDir, "C", "", "Working directory.")
-	flag.BoolVar(&contextBuilder.TextUI, "no-color", contextBuilder.TextUI, "Disable color terminal support.")
-
-	subcommands.Register(subcommands.HelpCommand(), "")
-	subcommands.Register(subcommands.FlagsCommand(), "")
-	subcommands.Register(subcommands.CommandsCommand(), "")
-	registerCmd(wrapCmd(&cli.ListProjectsCmd{}, "projects", projectsSynopsis, projectsUsage), "p")
-	registerCmd(wrapCmd(&cli.ListTargetsCmd{}, "targets", targetsSynopsis, targetsUsage), "t")
-	registerCmd(wrapCmd(&cli.CheckCmd{}, "check", checkSynopsis, checkUsage))
-	registerCmd(wrapCmd(&cli.StatusCmd{}, "status", statusSynopsis, statusUsage), "st")
-	registerCmd(wrapCmd(&cli.LogCmd{}, "log", logSynopsis, logUsage))
-	registerCmd(wrapCmd(&cli.BuildCmd{}, "build", buildSynopsis, buildUsage), "b")
-	registerCmd(wrapCmd(&cli.RunCmd{}, "run", runSynopsis, runUsage), "r")
+	cobra.EnableCommandSorting = false
 }
 
 func main() {
-	flag.Parse()
-	ctx, cancel := context.WithCancel(context.Background())
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		cancel()
-		<-sigCh
+	name, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unknown current executable: %v\n", err)
 		os.Exit(1)
-	}()
-	os.Exit(int(subcommands.Execute(ctx)))
+	}
+	bin := filepath.Base(name)
+
+	cmd := &cobra.Command{
+		Use:     bin,
+		Version: Version,
+		Short:   "Monorepo Build Tool",
+	}
+	cmd.PersistentFlags().StringVarP(
+		&contextBuilder.WorkDir,
+		"chdir", "C",
+		"",
+		"Working directory.",
+	)
+	cmd.PersistentFlags().BoolVar(
+		&contextBuilder.TextUI,
+		"script",
+		contextBuilder.TextUI,
+		"Disable color terminal support.",
+	)
+
+	listProjectsCmd := &cobra.Command{
+		Use:     "projects",
+		Aliases: []string{"p"},
+		Short:   "List all projects.",
+		Run:     cmdRunner(&cli.ListProjectsCmd{}),
+	}
+	cmd.AddCommand(listProjectsCmd)
+
+	listTargetsCmd := &cobra.Command{
+		Use:     targetsUsage,
+		Aliases: []string{"t"},
+		Short:   "List all targets or matched targets with specified patterns.",
+		Run:     cmdRunner(&cli.ListTargetsCmd{}),
+	}
+	cmd.AddCommand(listTargetsCmd)
+
+	checkCmd := &cobra.Command{
+		Use:   "check",
+		Short: "Check consistency of projects and targets.",
+		Run:   cmdRunner(&cli.CheckCmd{}),
+	}
+	cmd.AddCommand(checkCmd)
+
+	statusCmd := &cobra.Command{
+		Use:     statusUsage,
+		Aliases: []string{"st"},
+		Short:   "Print task status.",
+		Run:     cmdRunner(&cli.StatusCmd{}),
+	}
+	cmd.AddCommand(statusCmd)
+
+	logCmd := &cobra.Command{
+		Use:     logUsage,
+		Aliases: []string{"logs"},
+		Short:   "Print task logs.",
+		Run:     cmdRunner(&cli.LogCmd{}),
+	}
+	cmd.AddCommand(logCmd)
+
+	buildCmd := &cobra.Command{
+		Use:     buildUsage,
+		Aliases: []string{"b"},
+		Short:   "Build targets.",
+		Run:     cmdRunner(&cli.BuildCmd{}),
+	}
+	cmd.AddCommand(buildCmd)
+
+	runCmd := &cobra.Command{
+		Use:     runUsage,
+		Aliases: []string{"r"},
+		Short:   "Execute the output executable from the specified target.",
+		Run:     cmdRunner(&cli.RunCmd{}),
+	}
+	cmd.AddCommand(runCmd)
+
+	cmd.Execute()
 }

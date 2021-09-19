@@ -9,3 +9,4 @@ targets:
       go:
         packages: ['./cmd/repos']
         output: repos
+        args: ['-ldflags', '-s -w -X main.Version={{env "RELEASE_VERSION"}} -extldflags -static']

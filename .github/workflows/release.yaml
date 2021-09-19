@@ -15,13 +15,13 @@ jobs:
       id: go
       uses: actions/setup-go@v2
       with:
-        go-version: ^1.15
+        go-version: ^1.17
 
     - name: Checkout code
       uses: actions/checkout@v2
 
     - name: Build
-      run: CGO_ENABLED=0 go run ./cmd/repos b repos:*
+      run: RELEASE_VERSION="${GITHUB_REF##*/v}" CGO_ENABLED=0 go run ./cmd/repos b repos:*
       shell: bash
 
     - name: Release

@@ -214,6 +214,7 @@ func (t *ToolParamTemplate) TemplateFuncs() template.FuncMap {
 		"env":    t.fnEnv,
 		"depout": t.fnDepOut,
 		"depsrc": t.fnDepSrc,
+		"sh":     t.fnShell,
 	})
 }
 
@@ -275,6 +276,17 @@ func (t *ToolParamTemplate) fnDepSrc(depName string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(task.Graph.Repo.RootDir, task.Target.Project.Dir), nil
+}
+
+func (t *ToolParamTemplate) fnShell(commandline string) (string, error) {
+	cmd := t.ExecCtx.ShellCommand(context.Background(), commandline)
+	var out, errOut bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errOut
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("%w: %s", err, errOut.String())
+	}
+	return out.String(), nil
 }
 
 // CreateToolExecutor creates the ToolExecutor according to the tool.

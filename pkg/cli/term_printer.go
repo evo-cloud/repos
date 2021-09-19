@@ -251,7 +251,7 @@ func (p *tasksPrinter) printTaskLog(task *repos.Task) {
 	reader, err := p.logReader(task)
 	if err != nil {
 		p.printf("    \x1b[31mFailed to open log: %v.\x1b[m\n", err)
-		p.printf("    \x1b[31mPlease use \x1b[37mlog %s\x1b[31m command to inspect the output.\x1b[m\n", err, task.Name())
+		p.printf("    \x1b[31mPlease use \x1b[37mlog %s\x1b[31m command to inspect the output.\x1b[m\n", task.Name())
 		return
 	}
 	defer reader.Close()

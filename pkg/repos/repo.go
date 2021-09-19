@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/karrick/godirwalk"
 	"github.com/zabawaba99/go-gitignore"
 
@@ -61,7 +60,6 @@ func (r *Repo) LocateRoot() error {
 	for {
 		root, err := meta.LoadRootFromDir(wd)
 		if err == nil {
-			glog.Infof("Located Root %s", wd)
 			r.RootDir = wd
 			return r.updateMeta(root)
 		}
@@ -98,7 +96,6 @@ func (r *Repo) LoadProjects() error {
 		// Match gitignore pattern is expensive.
 		for _, pattern := range r.root.ProjectPathExclude {
 			if gitignore.Match(pattern, relPath) || gitignore.Match(pattern, dir) {
-				glog.V(2).Infof("Ignore project path %q for pattern %q", dir, pattern)
 				return filepath.SkipDir
 			}
 		}
@@ -110,7 +107,6 @@ func (r *Repo) LoadProjects() error {
 			if p, ok := projects[project.Name]; ok {
 				return fmt.Errorf("conflict project name %q in %q and %q", project.Name, project.Dir, p.Dir)
 			}
-			glog.Infof("Found project %s in %q", project.Name, project.Dir)
 			projects[project.Name] = project
 			prefix := project.Dir + string(filepath.Separator)
 			if strings.HasPrefix(relWorkDir, prefix) && (current == nil || len(project.Dir) > len(current.Dir)) {

@@ -29,6 +29,8 @@ type Params struct {
 	Packages []string `json:"packages,omitempty"`
 	// Env specifies extra environment variables.
 	Env []string `json:"env,omitempty"`
+	// GoArgs specifies extra arguments to the go command.
+	GoArgs []string `json:"args,omitempty"`
 	// Output specifies output filename.
 	Output string `json:"output,omitempty"`
 }
@@ -42,6 +44,7 @@ type Executor struct {
 	ExtraEnv     []string
 	BuildOptions []string
 	Packages     []string
+	ExtraArgs    []*repos.ToolParamTemplate
 	Output       string
 	CLib         bool
 
@@ -82,8 +85,13 @@ func (t *Tool) CreateToolExecutor(target *repos.Target) (repos.ToolExecutor, err
 	if len(params.Packages) == 0 {
 		return nil, fmt.Errorf("at least one package should be specified in param packages")
 	}
-	for _, item := range params.Env {
-		x.ExtraEnv = append(x.ExtraEnv, item)
+	x.ExtraEnv = append(x.ExtraEnv, params.Env...)
+	for n, arg := range params.GoArgs {
+		tpl, err := repos.NewToolParamTemplate(arg)
+		if err != nil {
+			return nil, fmt.Errorf("invalid parameter args[%d]: %w", n, err)
+		}
+		x.ExtraArgs = append(x.ExtraArgs, tpl)
 	}
 	if x.Output == "" {
 		x.Output = target.Name.LocalName
@@ -94,14 +102,19 @@ func (t *Tool) CreateToolExecutor(target *repos.Target) (repos.ToolExecutor, err
 
 // Execute implements ToolExecutor.
 func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) error {
+	extraArgs, err := xctx.RenderTemplates(x.ExtraArgs)
+	if err != nil {
+		return fmt.Errorf("args: %w", err)
+	}
 	cache := repos.NewFilesCache(xctx)
-	if x.validateCache(ctx, xctx, cache) {
+	if x.validateCache(ctx, xctx, cache, extraArgs) {
 		xctx.Output(*cache.SavedTaskOutputs())
 		return repos.ErrSkipped
 	}
 	cache.ClearSaved()
 	os.MkdirAll(filepath.Join(xctx.OutDir, filepath.Dir(x.Output)), 0755)
-	if err := xctx.RunAndLog(x.goCmd(ctx, xctx, "build", "-v", "-o", filepath.Join(xctx.OutDir, x.Output))); err != nil {
+	args := append([]string{"build", "-v", "-o", filepath.Join(xctx.OutDir, x.Output)}, extraArgs...)
+	if err := xctx.RunAndLog(x.goCmd(ctx, xctx, args...)); err != nil {
 		return err
 	}
 	cache.PersistOrLog()
@@ -109,7 +122,7 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 	return nil
 }
 
-func (x *Executor) validateCache(ctx context.Context, xctx *repos.ToolExecContext, cache *repos.FilesCache) bool {
+func (x *Executor) validateCache(ctx context.Context, xctx *repos.ToolExecContext, cache *repos.FilesCache, extraArgs []string) bool {
 	cmd := x.goCmd(ctx, xctx, "list", "-json", "-deps")
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = io.MultiWriter(&out, xctx.LogWriter), xctx.LogWriter
@@ -145,6 +158,7 @@ func (x *Executor) validateCache(ctx context.Context, xctx *repos.ToolExecContex
 		cache.AddOutputDir("CC_LIB_DIR", "lib")
 	}
 	cache.AddOpaque(x.stateOpaque...)
+	cache.AddOpaque(extraArgs...)
 	return xctx.Skippable && cache.Verify()
 }
 

@@ -123,18 +123,3 @@ func (p *textEventPrinter) HandleEvent(ctx context.Context, event repos.Dispatch
 		fmt.Printf("%s DONE %s\n", percentage, ev.Task.Name())
 	}
 }
-
-func (p *textEventPrinter) printTaskLog(task *repos.Task) {
-	if p.logReader == nil {
-		return
-	}
-	reader, err := p.logReader(task)
-	if err != nil {
-		fmt.Printf("%s read log error: %v\n", task.Name(), err)
-		fmt.Printf("Please use \"log %s\" command to inspect the log.", task.Name())
-		return
-	}
-	defer reader.Close()
-	io.Copy(os.Stdout, reader)
-	fmt.Println("")
-}
