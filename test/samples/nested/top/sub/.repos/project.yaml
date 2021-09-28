@@ -1,0 +1,8 @@
+---
+name: repos.test.sub
+targets:
+  say:
+    rule:
+      exec:
+        command: 'echo sub Say!'
+    always: true

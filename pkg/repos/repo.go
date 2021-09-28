@@ -37,12 +37,14 @@ type Repo struct {
 // NewRepo creates a Repo from the specified directory as working directory.
 // If wd is empty, the current working directory is used.
 func NewRepo(workDir string) (*Repo, error) {
+	var err error
 	if workDir == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		workDir = wd
+		workDir, err = os.Getwd()
+	} else {
+		workDir, err = filepath.Abs(workDir)
+	}
+	if err != nil {
+		return nil, err
 	}
 	r := &Repo{WorkDir: workDir}
 	if err := r.LocateRoot(); err != nil {

@@ -1,0 +1,16 @@
+---
+name: repos.test.top
+targets:
+  say:
+    rule:
+      exec:
+        command: 'echo Say!'
+    always: true
+
+  sub:
+    deps:
+    - repos.test.sub:say
+    rule:
+      exec:
+        command: 'echo After sub'
+    always: true

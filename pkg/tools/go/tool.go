@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go/build"
 	"io"
 	"os"
 	"os/exec"
@@ -49,6 +48,29 @@ type Executor struct {
 	CLib         bool
 
 	stateOpaque []string
+}
+
+type listPackage struct {
+	Dir               string   // directory containing package sources
+	GoFiles           []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles          []string // .go source files that import "C"
+	CompiledGoFiles   []string // .go files presented to compiler (when using -compiled)
+	IgnoredGoFiles    []string // .go source files ignored due to build constraints
+	IgnoredOtherFiles []string // non-.go source files ignored due to build constraints
+	CFiles            []string // .c source files
+	CXXFiles          []string // .cc, .cxx and .cpp source files
+	MFiles            []string // .m source files
+	HFiles            []string // .h, .hh, .hpp and .hxx source files
+	FFiles            []string // .f, .F, .for and .f90 Fortran source files
+	SFiles            []string // .s source files
+	SwigFiles         []string // .swig files
+	SwigCXXFiles      []string // .swigcxx files
+	SysoFiles         []string // .syso object files to add to archive
+	TestGoFiles       []string // _test.go files in package
+	XTestGoFiles      []string // _test.go files outside package
+	EmbedFiles        []string // files matched by EmbedPatterns
+	TestEmbedFiles    []string // files matched by TestEmbedPatterns
+	XTestEmbedFiles   []string // files matched by XTestEmbedPatterns
 }
 
 // CreateToolExecutor implements repos.Tool.
@@ -133,7 +155,7 @@ func (x *Executor) validateCache(ctx context.Context, xctx *repos.ToolExecContex
 	prefix := xctx.ProjectDir() + string(filepath.Separator)
 	decoder := json.NewDecoder(&out)
 	for {
-		var pkg build.Package
+		var pkg listPackage
 		err := decoder.Decode(&pkg)
 		if err == io.EOF {
 			break
@@ -146,7 +168,7 @@ func (x *Executor) validateCache(ctx context.Context, xctx *repos.ToolExecContex
 			continue
 		}
 		err = reportInputFiles(cache, pkg.Dir[len(prefix):],
-			pkg.GoFiles, pkg.CFiles, pkg.CXXFiles, pkg.MFiles, pkg.HFiles, pkg.SFiles, pkg.SwigFiles, pkg.SwigCXXFiles, pkg.SysoFiles)
+			pkg.GoFiles, pkg.CFiles, pkg.CXXFiles, pkg.MFiles, pkg.HFiles, pkg.SFiles, pkg.SwigFiles, pkg.SwigCXXFiles, pkg.SysoFiles, pkg.EmbedFiles)
 		if err != nil {
 			xctx.Logger.Print(err)
 			return false
