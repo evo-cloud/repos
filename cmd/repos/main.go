@@ -90,6 +90,21 @@ func cmdRunner(cmd cli.Command) func(c *cobra.Command, args []string) {
 	}
 }
 
+func setupBuildCmdFlags(c *cobra.Command, build *cli.BuildCmd) {
+	c.Flags().BoolVarP(
+		&build.Quiet,
+		"quiet", "q",
+		false,
+		"Be quiet, suppress output of failed tasks.",
+	)
+	c.Flags().BoolVarP(
+		&build.Force,
+		"force", "f",
+		false,
+		"Force rebuild the specified targets.",
+	)
+}
+
 func init() {
 	cobra.EnableCommandSorting = false
 }
@@ -159,20 +174,24 @@ func main() {
 	}
 	cmd.AddCommand(logCmd)
 
+	build := &cli.BuildCmd{}
 	buildCmd := &cobra.Command{
 		Use:     buildUsage,
 		Aliases: []string{"b"},
 		Short:   "Build targets.",
-		Run:     cmdRunner(&cli.BuildCmd{}),
+		Run:     cmdRunner(build),
 	}
+	setupBuildCmdFlags(buildCmd, build)
 	cmd.AddCommand(buildCmd)
 
+	run := &cli.RunCmd{}
 	runCmd := &cobra.Command{
 		Use:     runUsage,
 		Aliases: []string{"r"},
 		Short:   "Execute the output executable from the specified target.",
-		Run:     cmdRunner(&cli.RunCmd{}),
+		Run:     cmdRunner(run),
 	}
+	setupBuildCmdFlags(runCmd, &run.Build)
 	cmd.AddCommand(runCmd)
 
 	cmd.Execute()

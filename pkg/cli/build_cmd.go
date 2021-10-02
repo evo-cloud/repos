@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 
 	"repos/pkg/repos"
@@ -13,12 +12,6 @@ import (
 type BuildCmd struct {
 	Quiet bool
 	Force bool
-}
-
-// SetFlags binds the commandline flags.
-func (c *BuildCmd) SetFlags(fs *flag.FlagSet) {
-	fs.BoolVar(&c.Quiet, "q", c.Quiet, "Be quiet, suppress output of failed tasks.")
-	fs.BoolVar(&c.Force, "f", c.Force, "Force rebuild the specified targets.")
 }
 
 // Execute executes the command.

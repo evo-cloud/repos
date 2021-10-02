@@ -3,7 +3,6 @@ package cli
 import (
 	"container/list"
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -16,11 +15,6 @@ import (
 // RunCmd executes the output executable from the specified target.
 type RunCmd struct {
 	Build BuildCmd
-}
-
-// SetFlags binds the commandline flags.
-func (c *RunCmd) SetFlags(fs *flag.FlagSet) {
-	c.Build.SetFlags(fs)
 }
 
 // Execute executes the command.
