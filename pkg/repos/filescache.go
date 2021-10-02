@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -207,12 +208,15 @@ func (s *FilesCache) Verify() bool {
 			return false
 		}
 	}
-	if !compareFileEntryKeys(s.saved.Outputs, s.current.Outputs) ||
-		!compareFileEntryKeys(s.saved.Generates, s.current.Generates) ||
-		!compareFileEntryMaps(s.saved.Inputs, s.current.Inputs) ||
-		s.saved.TaskOutputs.Primary != s.current.TaskOutputs.Primary ||
-		!compareExtraTaskOutputs(s.saved.TaskOutputs.Extra, s.current.TaskOutputs.Extra) {
-		s.xctx.Logger.Println("Cache differences in inputs/outputs")
+	if !compareFileEntryKeys(s.saved.Outputs, s.current.Outputs, s.xctx.Logger, "outputs") ||
+		!compareFileEntryKeys(s.saved.Generates, s.current.Generates, s.xctx.Logger, "generates") ||
+		!compareFileEntryMaps(s.saved.Inputs, s.current.Inputs, s.xctx.Logger, "inputs") {
+		return false
+	}
+	if saved, curr := s.saved.TaskOutputs.Primary, s.current.TaskOutputs.Primary; saved != curr {
+		s.xctx.Logger.Printf("Cache primary output %q vs %q", saved, curr)
+	}
+	if !compareExtraTaskOutputs(s.saved.TaskOutputs.Extra, s.current.TaskOutputs.Extra, s.xctx.Logger) {
 		return false
 	}
 	if len(s.saved.Opaque) != len(s.current.Opaque) {
@@ -283,40 +287,51 @@ func (f *fileEntry) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func compareFileEntryMaps(m1, m2 map[string]*fileEntry) bool {
-	if len(m1) != len(m2) {
+func compareFileEntryMaps(m1, m2 map[string]*fileEntry, logger *log.Logger, title string) bool {
+	if l1, l2 := len(m1), len(m2); l1 != l2 {
+		logger.Printf("Cache %s length %d vs %d", title, l1, l2)
 		return false
 	}
 	for fn, entry1 := range m1 {
 		entry2 := m2[fn]
 		if entry2 == nil {
+			logger.Printf("Cache %s[%q] not found", title, fn)
 			return false
 		}
-		if entry1.Dir != entry2.Dir || entry1.MTime != entry2.MTime {
+		if dir1, dir2 := entry1.Dir, entry2.Dir; dir1 != dir2 {
+			logger.Printf("Cache %s[%q] IsDir %v vs %v", title, fn, dir1, dir2)
+			return false
+		}
+		if mtime1, mtime2 := entry1.MTime, entry2.MTime; mtime1 != mtime2 {
+			logger.Printf("Cache %s[%q] mtime %s vs %s", title, fn, mtime1, mtime2)
 			return false
 		}
 	}
 	return true
 }
 
-func compareFileEntryKeys(m1, m2 map[string]*fileEntry) bool {
-	if len(m1) != len(m2) {
+func compareFileEntryKeys(m1, m2 map[string]*fileEntry, logger *log.Logger, title string) bool {
+	if l1, l2 := len(m1), len(m2); l1 != l2 {
+		logger.Printf("Cache %s length %d vs %d", title, l1, l2)
 		return false
 	}
 	for fn := range m1 {
 		if entry2 := m2[fn]; entry2 == nil {
+			logger.Printf("Cache %s[%q] not found", title, fn)
 			return false
 		}
 	}
 	return true
 }
 
-func compareExtraTaskOutputs(m1, m2 map[string]string) bool {
-	if len(m1) != len(m2) {
+func compareExtraTaskOutputs(m1, m2 map[string]string, logger *log.Logger) bool {
+	if l1, l2 := len(m1), len(m2); l1 != l2 {
+		logger.Printf("Cache extra outputs length %d vs %d", l1, l2)
 		return false
 	}
 	for key := range m1 {
 		if _, ok := m2[key]; !ok {
+			logger.Printf("Cache extra outputs[%q] not found", key)
 			return false
 		}
 	}
