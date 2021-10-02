@@ -94,31 +94,31 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 	if err != nil {
 		return fmt.Errorf("args: %w", err)
 	}
-	cache := repos.NewFilesCache(xctx)
+	cr := &repos.CacheReporter{Cache: repos.NewFilesCache(xctx)}
 	if x.Params.ScriptFile != "" {
-		if err := cache.AddSource(x.Params.ScriptFile); err != nil {
+		if err := cr.AddSource(x.Params.ScriptFile); err != nil {
 			return err
 		}
 	}
 	for _, src := range x.Params.Srcs {
 		var err error
 		if strings.HasSuffix(src, string(filepath.Separator)) {
-			err = cache.AddSourceRecursively(src)
+			err = cr.AddSourceRecursively(src)
 		} else {
-			err = cache.AddSource(src)
+			err = cr.AddSource(src)
 		}
 		if err != nil {
 			return err
 		}
 	}
 	if x.Params.Out != "" {
-		cache.AddOutput("", x.Params.Out)
+		cr.AddOutput("", x.Params.Out)
 	}
 	for key, val := range x.Params.ExtraOut {
-		cache.AddOutput(key, val)
+		cr.AddOutput(key, val)
 	}
 	for _, gen := range x.Params.Generated {
-		cache.AddGenerated(gen)
+		cr.AddGenerated(gen)
 	}
 	var command string
 	if x.CommandTemplate != nil {
@@ -127,18 +127,18 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 		if err != nil {
 			return fmt.Errorf("rendering parameter command error: %w", err)
 		}
-		cache.AddOpaque(command)
+		cr.AddOpaque(command)
 	} else {
-		cache.AddOpaque(x.Params.ScriptFile)
-		cache.AddOpaque(args...)
+		cr.AddOpaque(x.Params.ScriptFile)
+		cr.AddOpaque(args...)
 	}
-	cache.AddOpaque(envs...)
-	cache.AddOpaque(x.Params.Opaque...)
-	if xctx.Skippable && cache.Verify() {
-		xctx.Output(*cache.SavedTaskOutputs())
+	cr.AddOpaque(envs...)
+	cr.AddOpaque(x.Params.Opaque...)
+	if xctx.Skippable && cr.Verify() {
+		xctx.Output(*cr.SavedTaskOutputs())
 		return repos.ErrSkipped
 	}
-	cache.ClearSaved()
+	cr.ClearSaved()
 	var cmd *exec.Cmd
 	if x.CommandTemplate != nil {
 		cmd = xctx.ShellCommand(ctx, command)
@@ -150,8 +150,8 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 	if err := xctx.RunAndLog(cmd); err != nil {
 		return err
 	}
-	cache.PersistOrLog()
-	xctx.Output(*cache.TaskOutputs())
+	xctx.PersistCacheOrLog(cr.Cache)
+	xctx.Output(*cr.Cache.TaskOutputs())
 	return nil
 }
 

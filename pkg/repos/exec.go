@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -430,7 +429,7 @@ func (x *execution) writeTaskResult(task *Task, result *TaskResult) {
 		return
 	}
 	fn := x.taskResultFile(task)
-	if err := ioutil.WriteFile(fn, data, 0644); err != nil {
+	if err := os.WriteFile(fn, data, 0644); err != nil {
 		x.logger.Printf("WriteResult %q error: %v", fn, err)
 	}
 }
@@ -490,7 +489,7 @@ func (x *execution) registerToolIfRequested(xctx *ToolExecContext) error {
 }
 
 func loadTaskResultFrom(fn string) (*TaskResult, error) {
-	data, err := ioutil.ReadFile(fn)
+	data, err := os.ReadFile(fn)
 	if err != nil {
 		return nil, fmt.Errorf("load error: %w", err)
 	}

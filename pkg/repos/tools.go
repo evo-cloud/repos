@@ -94,6 +94,23 @@ func (c ToolExecContext) Output(outputs OutputFiles) {
 	c.Task.Outputs = &outputs
 }
 
+// PersistCacheOrLog persists cache or logs on error.
+func (c ToolExecContext) PersistCacheOrLog(cache Cache) {
+	if err := cache.Persist(); err != nil {
+		c.Logger.Printf("Persist state error: %v", err)
+	}
+}
+
+// ReplayAndPersistCacheOrLog replays cache or logs on error.
+func (c ToolExecContext) ReplayAndPersistCacheOrLog(reporter *CacheReporter, cache Cache) Cache {
+	if err := reporter.Replay(cache); err != nil {
+		c.Logger.Printf("Refresh cache error: %v", err)
+		return cache
+	}
+	c.PersistCacheOrLog(cache)
+	return cache
+}
+
 // RenderTemplates renders string list from templates.
 func (c ToolExecContext) RenderTemplates(templates []*ToolParamTemplate) ([]string, error) {
 	vals := make([]string, 0, len(templates))

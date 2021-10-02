@@ -38,24 +38,24 @@ func (t *Tool) CreateToolExecutor(target *repos.Target) (repos.ToolExecutor, err
 
 // Execute implements repos.ToolExecutor.
 func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) error {
-	cache := repos.NewFilesCache(xctx)
+	cr := &repos.CacheReporter{Cache: repos.NewFilesCache(xctx)}
 	for _, src := range x.Params.Srcs {
 		var err error
 		if strings.HasSuffix(src, string(filepath.Separator)) {
-			err = cache.AddSourceRecursively(src)
+			err = cr.AddSourceRecursively(src)
 		} else {
-			err = cache.AddSource(src)
+			err = cr.AddSource(src)
 		}
 		if err != nil {
 			return err
 		}
 	}
-	cache.AddOpaque(x.Params.Opaque...)
-	if xctx.Skippable && cache.Verify() {
+	cr.AddOpaque(x.Params.Opaque...)
+	if xctx.Skippable && cr.Verify() {
 		return repos.ErrSkipped
 	}
-	cache.ClearSaved()
-	cache.PersistOrLog()
+	cr.ClearSaved()
+	xctx.PersistCacheOrLog(cr.Cache)
 	return nil
 }
 

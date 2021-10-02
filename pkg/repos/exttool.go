@@ -92,26 +92,26 @@ func ExecuteExtToolCmd(ctx context.Context, xctx *ToolExecContext, cmd *exec.Cmd
 		return fmt.Errorf("start command %v error: %w", cmd.Args, err)
 	}
 
-	cache := NewFilesCache(xctx)
-	cache.AddOpaque(cmd.Args...)
-	cache.AddOpaque(envs...)
-	err = controlCmd(xctx, cache, in, out)
+	cr := &CacheReporter{Cache: NewFilesCache(xctx)}
+	cr.AddOpaque(cmd.Args...)
+	cr.AddOpaque(envs...)
+	err = controlCmd(xctx, cr, in, out)
 	execErr := cmd.Wait()
 	if err != nil {
 		if err == ErrSkipped {
-			xctx.Output(*cache.SavedTaskOutputs())
+			xctx.Output(*cr.SavedTaskOutputs())
 		}
 		return err
 	}
 	if execErr != nil {
 		return execErr
 	}
-	cache.PersistOrLog()
+	cache := xctx.ReplayAndPersistCacheOrLog(cr, NewFilesCache(xctx))
 	xctx.Output(*cache.TaskOutputs())
 	return nil
 }
 
-func controlCmd(xctx *ToolExecContext, cache *FilesCache, in io.WriteCloser, out io.Reader) error {
+func controlCmd(xctx *ToolExecContext, cache *CacheReporter, in io.WriteCloser, out io.Reader) error {
 	defer in.Close()
 	scanner := bufio.NewScanner(out)
 	for scanner.Scan() {

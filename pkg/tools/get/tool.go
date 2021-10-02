@@ -123,18 +123,18 @@ func (t *Tool) CreateToolExecutor(target *repos.Target) (repos.ToolExecutor, err
 
 // Execute implements repos.ToolExecutor.
 func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) error {
-	cache := repos.NewFilesCache(xctx)
-	cache.AddOutput("", x.Filename)
-	cache.AddOpaque(x.DigestAlgo + ":" + x.DigestValue)
+	cr := &repos.CacheReporter{Cache: repos.NewFilesCache(xctx)}
+	cr.AddOutput("", x.Filename)
+	cr.AddOpaque(x.DigestAlgo + ":" + x.DigestValue)
 	if x.UnpackOutDir != "" {
-		cache.AddOutputDir("dir", x.UnpackOutDir)
-		cache.AddOpaque(x.UseSubDir)
+		cr.AddOutputDir("dir", x.UnpackOutDir)
+		cr.AddOpaque(x.UseSubDir)
 	}
-	if xctx.Skippable && cache.Verify() {
-		xctx.Output(*cache.SavedTaskOutputs())
+	if xctx.Skippable && cr.Verify() {
+		xctx.Output(*cr.SavedTaskOutputs())
 		return repos.ErrSkipped
 	}
-	cache.ClearSaved()
+	cr.ClearSaved()
 	outFn := filepath.Join(xctx.OutDir, x.Filename)
 	if !x.validateDigest(xctx) {
 		os.Remove(outFn)
@@ -166,8 +166,8 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 			}
 		}
 	}
-	cache.PersistOrLog()
-	xctx.Output(*cache.TaskOutputs())
+	xctx.PersistCacheOrLog(cr.Cache)
+	xctx.Output(*cr.Cache.TaskOutputs())
 	return nil
 }
 

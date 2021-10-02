@@ -139,7 +139,7 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 	if err := xctx.RunAndLog(x.goCmd(ctx, xctx, args...)); err != nil {
 		return err
 	}
-	cache.PersistOrLog()
+	xctx.PersistCacheOrLog(cache)
 	xctx.Output(*cache.TaskOutputs())
 	return nil
 }
@@ -176,8 +176,8 @@ func (x *Executor) validateCache(ctx context.Context, xctx *repos.ToolExecContex
 	}
 	cache.AddOutput("", x.Output)
 	if x.CLib {
-		cache.AddOutputDir("CC_INC_DIR", "lib")
-		cache.AddOutputDir("CC_LIB_DIR", "lib")
+		cache.AddOutput("CC_INC_DIR", "lib/")
+		cache.AddOutput("CC_LIB_DIR", "lib/")
 	}
 	cache.AddOpaque(x.stateOpaque...)
 	cache.AddOpaque(extraArgs...)
@@ -197,7 +197,7 @@ func (x *Executor) goCmd(ctx context.Context, xctx *repos.ToolExecContext, args 
 func reportInputFiles(cache *repos.FilesCache, subDir string, fileGroups ...[]string) error {
 	for _, group := range fileGroups {
 		for _, name := range group {
-			if err := cache.AddInput(filepath.Join(subDir, name)); err != nil {
+			if err := cache.AddInput(filepath.Join(subDir, name), false); err != nil {
 				return fmt.Errorf("add input %q to state failed: %v", name, err)
 			}
 		}

@@ -186,26 +186,26 @@ func (t *Tool) CreateToolExecutor(target *repos.Target) (repos.ToolExecutor, err
 
 // Execute implements repos.ToolExecutor.
 func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) error {
-	cache := repos.NewFilesCache(xctx)
+	cr := &repos.CacheReporter{Cache: repos.NewFilesCache(xctx)}
 	for _, src := range x.SourceList {
-		if err := cache.AddSource(src); err != nil {
+		if err := cr.AddSource(src); err != nil {
 			return fmt.Errorf("add source %q to cache failed: %w", src, err)
 		}
 	}
 	for _, hdr := range x.HeaderList {
-		if err := cache.AddSource(hdr); err != nil {
+		if err := cr.AddSource(hdr); err != nil {
 			return fmt.Errorf("add header %q to cache failed: %w", hdr, err)
 		}
 	}
-	cache.AddOutput("", x.data.Target)
+	cr.AddOutput("", x.data.Target)
 	if strings.HasPrefix(x.data.Target, "lib/") {
-		cache.AddOutputDir("CC_LIB_DIR", "lib")
+		cr.AddOutputDir("CC_LIB_DIR", "lib")
 	}
-	cache.AddOpaque(strings.Join(x.data.CFlags, " "))
-	cache.AddOpaque(strings.Join(x.data.CXXFlags, " "))
-	cache.AddOpaque(strings.Join(x.data.Libs, " "))
-	if xctx.Skippable && cache.Verify() {
-		xctx.Output(*cache.SavedTaskOutputs())
+	cr.AddOpaque(strings.Join(x.data.CFlags, " "))
+	cr.AddOpaque(strings.Join(x.data.CXXFlags, " "))
+	cr.AddOpaque(strings.Join(x.data.Libs, " "))
+	if xctx.Skippable && cr.Verify() {
+		xctx.Output(*cr.SavedTaskOutputs())
 		return repos.ErrSkipped
 	}
 
@@ -235,8 +235,8 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 		return fmt.Errorf("run make error: %w", err)
 	}
 
-	cache.PersistOrLog()
-	xctx.Output(*cache.TaskOutputs())
+	xctx.PersistCacheOrLog(cr.Cache)
+	xctx.Output(*cr.Cache.TaskOutputs())
 	return nil
 }
 
