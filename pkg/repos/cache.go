@@ -125,6 +125,14 @@ func (r *CacheReporter) AddGeneratedDir(relPath string) {
 	r.AddGenerated(strings.TrimRight(relPath, pathSep) + pathSep)
 }
 
+// AddOpaque add opaque data.
+func (r *CacheReporter) AddOpaque(opaque ...string) {
+	r.records = append(r.records, func(c Cache) error {
+		r.Cache.AddOpaque(opaque...)
+		return nil
+	})
+}
+
 // Replay replays the recorded reports to the specified cache.
 func (r *CacheReporter) Replay(c Cache) error {
 	for _, rec := range r.records {
