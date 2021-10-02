@@ -127,8 +127,9 @@ func (r *CacheReporter) AddGeneratedDir(relPath string) {
 
 // AddOpaque add opaque data.
 func (r *CacheReporter) AddOpaque(opaque ...string) {
+	r.Cache.AddOpaque(opaque...)
 	r.records = append(r.records, func(c Cache) error {
-		r.Cache.AddOpaque(opaque...)
+		c.AddOpaque(opaque...)
 		return nil
 	})
 }
