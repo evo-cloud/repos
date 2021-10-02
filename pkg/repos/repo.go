@@ -59,20 +59,26 @@ func (r *Repo) LocateRoot() error {
 	if err != nil {
 		return fmt.Errorf("unknown absolute path of working dir %q: %w", r.WorkDir, err)
 	}
-	for {
-		root, err := meta.LoadRootFromDir(wd)
-		if err == nil {
-			r.RootDir = wd
-			return r.updateMeta(root)
+	var root *meta.Root
+	for root == nil || !root.AbsoluteRoot {
+		m, err := meta.LoadRootFromDir(wd)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("check %s error: %w", filepath.Join(wd, meta.RootFile), err)
+			}
 		}
-		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("check %s error: %w", filepath.Join(wd, meta.RootFile), err)
+		if err == nil {
+			root, r.RootDir = m, wd
 		}
 		if wd == "/" {
-			return fmt.Errorf("find %s from %q failed: %w", meta.RootFile, r.WorkDir, os.ErrNotExist)
+			break
 		}
 		wd = filepath.Dir(wd)
 	}
+	if root == nil {
+		return fmt.Errorf("find %s from %q failed: %w", meta.RootFile, r.WorkDir, os.ErrNotExist)
+	}
+	return r.updateMeta(root)
 }
 
 // LoadProjects scans the repository to populate all projects.

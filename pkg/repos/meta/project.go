@@ -13,6 +13,10 @@ type Project struct {
 	Description string `json:"description,omitempty"`
 	// Targets specifies all the targets in this project.
 	Targets map[string]*Target `json:"targets,omitempty"`
+	// Includes specifies additional sources to merge.
+	// The value must be a filename relative to the folder containing the
+	// main project file.
+	Includes []string `json:"includes,omitempty"`
 }
 
 // Target defines the schema of a single target.

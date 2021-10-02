@@ -20,4 +20,7 @@ type Root struct {
 	MetaFolder string `json:"meta-folder,omitempty"`
 	// ProjectPathExclude specifies the pattern to skip certain paths when looking for projects.
 	ProjectPathExclude []string `json:"project-path-exclude,omitempty"`
+	// AbsoluteRoot when set to true, prevents the folder containing RootFile from being merged
+	//  in the ancestor folder containing a RootFile as part of a bigger project.
+	AbsoluteRoot bool `json:"allow-parent,omitempty"`
 }

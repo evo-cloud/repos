@@ -1,6 +1,7 @@
 package repos
 
 import (
+	"container/list"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -62,6 +63,12 @@ func (n TargetName) GlobalName() string {
 	return n.Project + ":" + n.LocalName
 }
 
+func mergeMetaTargets(targets, from map[string]*meta.Target) {
+	for name, target := range from {
+		targets[name] = target
+	}
+}
+
 func loadProject(r *Repo, relPath string) (*Project, error) {
 	fn := filepath.Join(r.RootDir, relPath, r.metaFolder, meta.ProjectFile)
 	project, err := meta.LoadProjectFile(fn)
@@ -78,7 +85,33 @@ func loadProject(r *Repo, relPath string) (*Project, error) {
 	if p.Name == "" {
 		return nil, fmt.Errorf("missing project name: %q", fn)
 	}
-	for name, targetMeta := range p.meta.Targets {
+
+	targets := make(map[string]*meta.Target)
+
+	// Processing includes.
+	var incProjects list.List
+	incProjectFiles := make(map[string]*meta.Project)
+	incProjects.PushBack(project)
+	incProjectFiles[meta.ProjectFile] = project
+	for incProjects.Len() > 0 {
+		elem := incProjects.Front()
+		project := elem.Value.(*meta.Project)
+		incProjects.Remove(elem)
+		mergeMetaTargets(targets, project.Targets)
+		for _, includeFile := range p.meta.Includes {
+			if incProjectFiles[includeFile] != nil {
+				continue
+			}
+			project, err = meta.LoadProjectFile(filepath.Join(r.RootDir, relPath, r.metaFolder, includeFile))
+			if err != nil {
+				return nil, err
+			}
+			incProjects.PushBack(project)
+			incProjectFiles[includeFile] = project
+		}
+	}
+
+	for name, targetMeta := range targets {
 		target := &Target{
 			Project: p,
 			Name:    TargetName{Project: p.Name, LocalName: name},
