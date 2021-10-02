@@ -194,16 +194,16 @@ func (s *FilesCache) Verify() bool {
 }
 
 // TaskOutputs implements Cache.
-func (s *FilesCache) TaskOutputs() *OutputFiles {
-	return &s.current.TaskOutputs
+func (s *FilesCache) TaskOutputs() OutputFiles {
+	return s.current.TaskOutputs
 }
 
 // SavedTaskOutputs implements Cache.
-func (s *FilesCache) SavedTaskOutputs() *OutputFiles {
+func (s *FilesCache) SavedTaskOutputs() OutputFiles {
 	if s.saved != nil {
-		return &s.saved.TaskOutputs
+		return s.saved.TaskOutputs
 	}
-	return nil
+	return OutputFiles{}
 }
 
 func (f *fileEntry) String() string {

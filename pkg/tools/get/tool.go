@@ -131,7 +131,7 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 		cr.AddOpaque(x.UseSubDir)
 	}
 	if xctx.Skippable && cr.Verify() {
-		xctx.Output(*cr.SavedTaskOutputs())
+		xctx.Output(cr.SavedTaskOutputs())
 		return repos.ErrSkipped
 	}
 	cr.ClearSaved()
@@ -167,7 +167,7 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 		}
 	}
 	xctx.PersistCacheOrLog(cr.Cache)
-	xctx.Output(*cr.Cache.TaskOutputs())
+	xctx.Output(cr.Cache.TaskOutputs())
 	return nil
 }
 

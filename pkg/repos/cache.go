@@ -49,10 +49,10 @@ type Cache interface {
 	Verify() bool
 
 	// TaskOutputs returns the output files from the current state.
-	TaskOutputs() *OutputFiles
+	TaskOutputs() OutputFiles
 
 	// SavedTaskOutputs returns the output files from saved state.
-	SavedTaskOutputs() *OutputFiles
+	SavedTaskOutputs() OutputFiles
 }
 
 // CacheReporter wraps a Cache with some helper funcs.

@@ -99,7 +99,7 @@ func ExecuteExtToolCmd(ctx context.Context, xctx *ToolExecContext, cmd *exec.Cmd
 	execErr := cmd.Wait()
 	if err != nil {
 		if err == ErrSkipped {
-			xctx.Output(*cr.SavedTaskOutputs())
+			xctx.Output(cr.SavedTaskOutputs())
 		}
 		return err
 	}
@@ -107,7 +107,7 @@ func ExecuteExtToolCmd(ctx context.Context, xctx *ToolExecContext, cmd *exec.Cmd
 		return execErr
 	}
 	cache := xctx.ReplayAndPersistCacheOrLog(cr, NewFilesCache(xctx))
-	xctx.Output(*cache.TaskOutputs())
+	xctx.Output(cache.TaskOutputs())
 	return nil
 }
 

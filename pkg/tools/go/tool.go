@@ -130,7 +130,7 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 	}
 	cache := repos.NewFilesCache(xctx)
 	if x.validateCache(ctx, xctx, cache, extraArgs) {
-		xctx.Output(*cache.SavedTaskOutputs())
+		xctx.Output(cache.SavedTaskOutputs())
 		return repos.ErrSkipped
 	}
 	cache.ClearSaved()
@@ -140,7 +140,7 @@ func (x *Executor) Execute(ctx context.Context, xctx *repos.ToolExecContext) err
 		return err
 	}
 	xctx.PersistCacheOrLog(cache)
-	xctx.Output(*cache.TaskOutputs())
+	xctx.Output(cache.TaskOutputs())
 	return nil
 }
 
