@@ -7,6 +7,8 @@ var (
 	// to indicate the task is skipped.
 	ErrSkipped = errors.New("skipped")
 
+	// ErrSomeTaskFailed indicates some tasks have failed.
+	ErrSomeTaskFailed = errors.New("some task failed")
 	// ErrIncomplete indicates not all tasks are completed.
 	ErrIncomplete = errors.New("incomplete")
 	// ErrTooManyTools indicates more than one tool is specified in target.rule.

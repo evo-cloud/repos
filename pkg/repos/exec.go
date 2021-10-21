@@ -85,6 +85,7 @@ type execution struct {
 	graph        *TaskGraph
 	runningCount int
 	numWorkers   int
+	failureCount int
 	requestCh    chan *Task
 	resultCh     chan *Task
 	eventCh      chan DispatcherEvent
@@ -211,8 +212,12 @@ func (x *execution) run(ctx context.Context) error {
 		x.complete(ctx, task)
 	}
 
-	if err == nil && x.haveWorkToDo() {
-		err = ErrIncomplete
+	if err == nil {
+		if x.failureCount > 0 {
+			err = ErrSomeTaskFailed
+		} else if x.haveWorkToDo() {
+			err = ErrIncomplete
+		}
 	}
 
 	x.notifyEvent(ctx, &DispatcherEndEvent{Err: err})
@@ -258,6 +263,9 @@ func (x *execution) waitResults(ctx context.Context) error {
 func (x *execution) complete(ctx context.Context, task *Task) {
 	x.graph.Complete(task)
 	x.runningCount--
+	if task.Err != nil {
+		x.failureCount++
+	}
 	x.logger.Printf("Completed task %s, err: %v", task.Name(), task.Err)
 	x.notifyEvent(ctx, &TaskCompleteEvent{Task: task})
 }

@@ -46,7 +46,7 @@ func (c *BuildCmd) Build(ctx context.Context, cctx *Context, targets ...string) 
 	err = disp.Run(ctx)
 	if err != nil {
 		switch {
-		case errors.Is(err, repos.ErrIncomplete):
+		case errors.Is(err, repos.ErrSomeTaskFailed) || errors.Is(err, repos.ErrIncomplete):
 			err = fmt.Errorf(`some tasks failed, use "status|log TARGET" to inspect the details`)
 		case errors.Is(err, context.DeadlineExceeded):
 			err = fmt.Errorf("timeout")
