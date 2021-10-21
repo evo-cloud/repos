@@ -1,8 +1,8 @@
 ---
 data-dir: out/repos
 project-path-exclude:
-- '_*'
-- '.*'
-- '/local'
-- '/tmp'
-- '/out'
+- '_**'
+- '.**'
+- '/local/**'
+- '/tmp/**'
+- '/out/**'

@@ -112,6 +112,7 @@ func (p *textEventPrinter) HandleEvent(ctx context.Context, event repos.Dispatch
 		if ev.Task.Failed() {
 			p.failed++
 			fmt.Printf("%s FAILED %s: %v\n", percentage, ev.Task.Name(), ev.Task.Err)
+			p.printTaskLog(ev.Task)
 			return
 		}
 		if ev.Task.Skipped() {
@@ -122,4 +123,19 @@ func (p *textEventPrinter) HandleEvent(ctx context.Context, event repos.Dispatch
 		p.succeeded++
 		fmt.Printf("%s DONE %s\n", percentage, ev.Task.Name())
 	}
+}
+
+func (p *textEventPrinter) printTaskLog(task *repos.Task) {
+	if p.logReader == nil {
+		return
+	}
+	reader, err := p.logReader(task)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to open log: %v.\n", err)
+		fmt.Fprintf(os.Stderr, "Please use log %s command to inspect the output.\n", task.Name())
+		return
+	}
+	defer reader.Close()
+	io.Copy(os.Stderr, reader)
+	fmt.Fprintln(os.Stderr, "")
 }
