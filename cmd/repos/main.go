@@ -134,6 +134,12 @@ func main() {
 		contextBuilder.TextUI,
 		"Disable color terminal support.",
 	)
+	cmd.PersistentFlags().BoolVar(
+		&contextBuilder.LocalScope,
+		"local",
+		false,
+		"Restrict in the local scope - find the closest REPOS.yaml instead of the top-most one.",
+	)
 
 	listProjectsCmd := &cobra.Command{
 		Use:     "projects",

@@ -48,8 +48,9 @@ type Context struct {
 
 // ContextBuilder is used to build Context.
 type ContextBuilder struct {
-	WorkDir string
-	TextUI  bool
+	WorkDir    string
+	TextUI     bool
+	LocalScope bool
 }
 
 // BuildContext creates a context.
@@ -62,7 +63,11 @@ func (b *ContextBuilder) BuildContext() (*Context, error) {
 			c.UI = &TermPrinter{}
 		}
 	}
-	repo, err := repos.NewRepo(b.WorkDir)
+	scope := repos.RepoScopeGlobal
+	if b.LocalScope {
+		scope = repos.RepoScopeLocal
+	}
+	repo, err := repos.NewRepo(b.WorkDir, scope)
 	if err != nil {
 		c.UI.PrintError(err)
 		return nil, err

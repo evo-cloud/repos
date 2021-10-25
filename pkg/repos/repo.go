@@ -20,6 +20,20 @@ const (
 	cacheFolderName = "cache"
 )
 
+// RepoScope defines the scope to look up for the manifest files.
+type RepoScope int
+
+const (
+	// RepoScopeGlobal looks up the root at the top-most folder.
+	// The logic will traverse up the directory hierarchy to find the repo manifest file
+	// in the top-level folder.
+	RepoScopeGlobal RepoScope = iota
+	// RepoScopeLocal looks up the root at the closest folder.
+	// The logic will traverse up the directory hierarchy until the first repo manifest
+	// file is located (in the closest parent folder).
+	RepoScopeLocal
+)
+
 // Repo represents the monolithic repository.
 type Repo struct {
 	// RootDir is the absolute path to the root of the repository.
@@ -36,7 +50,7 @@ type Repo struct {
 
 // NewRepo creates a Repo from the specified directory as working directory.
 // If wd is empty, the current working directory is used.
-func NewRepo(workDir string) (*Repo, error) {
+func NewRepo(workDir string, scope RepoScope) (*Repo, error) {
 	var err error
 	if workDir == "" {
 		workDir, err = os.Getwd()
@@ -47,20 +61,20 @@ func NewRepo(workDir string) (*Repo, error) {
 		return nil, err
 	}
 	r := &Repo{WorkDir: workDir}
-	if err := r.LocateRoot(); err != nil {
+	if err := r.LocateRoot(scope); err != nil {
 		return nil, err
 	}
 	return r, nil
 }
 
 // LocateRoot find the root of the repository from working directory.
-func (r *Repo) LocateRoot() error {
+func (r *Repo) LocateRoot(scope RepoScope) error {
 	wd, err := filepath.Abs(r.WorkDir)
 	if err != nil {
 		return fmt.Errorf("unknown absolute path of working dir %q: %w", r.WorkDir, err)
 	}
 	var root *meta.Root
-	for root == nil || !root.AbsoluteRoot {
+	for root == nil || (scope == RepoScopeGlobal && !root.AbsoluteRoot) {
 		m, err := meta.LoadRootFromDir(wd)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
