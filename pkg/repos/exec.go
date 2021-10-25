@@ -3,6 +3,7 @@ package repos
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -263,7 +264,7 @@ func (x *execution) waitResults(ctx context.Context) error {
 func (x *execution) complete(ctx context.Context, task *Task) {
 	x.graph.Complete(task)
 	x.runningCount--
-	if task.Err != nil {
+	if task.Err != nil && !errors.Is(task.Err, ErrSkipped) {
 		x.failureCount++
 	}
 	x.logger.Printf("Completed task %s, err: %v", task.Name(), task.Err)
