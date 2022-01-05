@@ -57,7 +57,7 @@ func NewFilesCache(xctx *ToolExecContext) *FilesCache {
 // AddInput implements Cache.
 func (s *FilesCache) AddInput(relPath string, recursive bool) error {
 	if recursive {
-		return filepath.Walk(filepath.Join(s.xctx.ProjectDir(), relPath), func(path string, info os.FileInfo, err error) error {
+		return filepath.Walk(filepath.Join(s.xctx.SourceDir(), relPath), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -65,7 +65,7 @@ func (s *FilesCache) AddInput(relPath string, recursive bool) error {
 			return nil
 		})
 	}
-	fn := filepath.Join(s.xctx.ProjectDir(), relPath)
+	fn := filepath.Join(s.xctx.SourceDir(), relPath)
 	fi, err := os.Stat(fn)
 	if err != nil {
 		return err
@@ -83,8 +83,9 @@ func (s *FilesCache) AddSource(relPath string, recursive bool) error {
 }
 
 func (s *FilesCache) addInputEntry(fn string, entry *fileEntry) {
-	s.current.Inputs[fn] = entry
-	s.xctx.Logger.Printf("Input %q %s", fn[len(s.xctx.ProjectDir())+1:], entry.String())
+	key := filepath.Clean(fn)
+	s.current.Inputs[key] = entry
+	s.xctx.Logger.Printf("Input %q %s", key, entry.String())
 }
 
 // AddOutput implements Cache.

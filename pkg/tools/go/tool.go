@@ -152,7 +152,7 @@ func (x *Executor) validateCache(ctx context.Context, xctx *repos.ToolExecContex
 		return false
 	}
 
-	prefix := xctx.ProjectDir() + string(filepath.Separator)
+	prefix := strings.TrimRight(filepath.Clean(xctx.SourceDir()), string(filepath.Separator)) + string(filepath.Separator)
 	decoder := json.NewDecoder(&out)
 	for {
 		var pkg listPackage
@@ -164,6 +164,7 @@ func (x *Executor) validateCache(ctx context.Context, xctx *repos.ToolExecContex
 			xctx.Logger.Printf("parse output of go list error: %v", err)
 			return false
 		}
+		xctx.Logger.Printf("Package dir=%q prefix=%q", pkg.Dir, prefix)
 		if !strings.HasPrefix(pkg.Dir, prefix) {
 			continue
 		}
